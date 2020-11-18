@@ -229,9 +229,11 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     // ===== SETUP =================================================================================
 
     private VideoConstraints buildVideoConstraints() {
+        // QCIF (Quarter Common Interface Format)
+        VideoDimensions dimensions = new VideoDimensions(176, 144);
         return new VideoConstraints.Builder()
-                .minVideoDimensions(VideoDimensions.CIF_VIDEO_DIMENSIONS)
-                .maxVideoDimensions(VideoDimensions.CIF_VIDEO_DIMENSIONS)
+                .minVideoDimensions(dimensions)
+                .maxVideoDimensions(dimensions)
                 .minFps(5)
                 .maxFps(15)
                 .build();
@@ -437,6 +439,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                      NetworkQualityVerbosity.NETWORK_QUALITY_VERBOSITY_MINIMAL));
          }
 
+        connectOptionsBuilder.encodingParameters(new EncodingParameters(16, 0);
         room = Video.connect(getContext(), connectOptionsBuilder.build(), roomListener());
     }
 

@@ -71,6 +71,9 @@ import com.twilio.video.TwilioException;
 import com.twilio.video.Video;
 import com.twilio.video.VideoConstraints;
 import com.twilio.video.VideoDimensions;
+import com.twilio.video.EncodingParameters;
+import com.twilio.video.VideoBandwidthProfileOptions;
+import com.twilio.video.BandwidthProfileMode;
 
 import org.webrtc.voiceengine.WebRtcAudioManager;
 
@@ -191,6 +194,8 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
     private LocalDataTrack localDataTrack;
 
+    private VideoDimensions videoDimensions;
+
     // Map used to map remote data tracks to remote participants
     private final Map<RemoteDataTrack, RemoteParticipant> dataTrackRemoteParticipantMap =
             new HashMap<>();
@@ -231,6 +236,9 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private VideoConstraints buildVideoConstraints() {
         // QCIF (Quarter Common Interface Format)
         VideoDimensions dimensions = new VideoDimensions(176, 144);
+        if(this.videoDimensions != null) {
+            dimensions = new VideoDimensions(this.videoDimensions.get("width").intValue(), this.videoDimensions.get("height").intValue());
+        }
         return new VideoConstraints.Builder()
                 .minVideoDimensions(dimensions)
                 .maxVideoDimensions(dimensions)
@@ -388,11 +396,12 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
     public void connectToRoomWrapper(
             String roomName, String accessToken, boolean enableAudio, boolean enableVideo,
-            boolean enableRemoteAudio, boolean enableNetworkQualityReporting) {
+            boolean enableRemoteAudio, boolean enableNetworkQualityReporting, Map<String, Double> videoCaptureDimensions) {
         this.roomName = roomName;
         this.accessToken = accessToken;
         this.enableRemoteAudio = enableAudio;
         this.enableNetworkQualityReporting = enableNetworkQualityReporting;
+        this.videoDimensions = videoCaptureDimensions;
 
         // Share your microphone
         localAudioTrack = LocalAudioTrack.create(getContext(), enableAudio);
@@ -402,8 +411,8 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
             if (!createVideoStatus) {
                 // No need to connect to room if video creation failed
                 return;
-        }
-    }
+            }
+         }
         connectToRoom(enableAudio);
     }
 
@@ -439,7 +448,14 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                      NetworkQualityVerbosity.NETWORK_QUALITY_VERBOSITY_MINIMAL));
          }
 
+         VideoBandwidthProfileOptions videoBandwidthProfileOptions = new VideoBandwidthProfileOptions.Builder()
+                 .mode(BandwidthProfileMode.GRID)
+                 .build();
+         BandwidthProfileOptions bandwidthProfileOptions = new BandwidthProfileOptions(videoBandwidthProfileOptions);
+
         connectOptionsBuilder.encodingParameters(new EncodingParameters(16, 0);
+        connectOptionsBuilder.bandwidthProfile(bandwidthProfileOptions);
+
         room = Video.connect(getContext(), connectOptionsBuilder.build(), roomListener());
     }
 
@@ -490,7 +506,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                 myNoisyAudioStreamReceiver = null;
             } catch (Exception e) {
                 // already registered
-                e.printStackTrace();
+//                 e.printStackTrace();
             }
         }
     }

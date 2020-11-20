@@ -11,12 +11,14 @@ package com.twiliorn.library;
 import android.support.annotation.Nullable;
 
 import com.facebook.react.bridge.ReadableArray;
+import com.facebook.react.bridge.ReadableMap;
 import com.facebook.react.common.MapBuilder;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.annotations.ReactProp;
 
 import java.util.Map;
+import java.util.HashMap;
 
 import static com.twiliorn.library.CustomTwilioVideoView.Events.ON_AUDIO_CHANGED;
 import static com.twiliorn.library.CustomTwilioVideoView.Events.ON_CAMERA_SWITCHED;
@@ -80,7 +82,12 @@ public class CustomTwilioVideoViewManager extends SimpleViewManager<CustomTwilio
                 boolean enableVideo = args.getBoolean(3);
                 boolean enableRemoteAudio = args.getBoolean(4);
                 boolean enableNetworkQualityReporting = args.getBoolean(5);
-                view.connectToRoomWrapper(roomName, accessToken, enableAudio, enableVideo, enableRemoteAudio, enableNetworkQualityReporting);
+                ReadableMap videoCaptureDimensions = args.getMap(6);
+                Map<String, Double> videoCaptureDimensionsMap = new HashMap<>();
+                videoCaptureDimensionsMap.put("height", videoCaptureDimensions.getDouble("height"));
+                videoCaptureDimensionsMap.put("width", videoCaptureDimensions.getDouble("width"));
+
+                view.connectToRoomWrapper(roomName, accessToken, enableAudio, enableVideo, enableRemoteAudio, enableNetworkQualityReporting, videoCaptureDimensionsMap);
                 break;
             case DISCONNECT:
                 view.disconnect();

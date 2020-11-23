@@ -82,7 +82,7 @@ public class CustomTwilioVideoViewManager extends SimpleViewManager<CustomTwilio
                 boolean enableVideo = args.getBoolean(3);
                 boolean enableRemoteAudio = args.getBoolean(4);
                 boolean enableNetworkQualityReporting = args.getBoolean(5);
-                int maxVideoBitrate = args.getInt(6);
+                int maxVideoBitrate = 25;
 
                 view.connectToRoomWrapper(roomName, accessToken, enableAudio, enableVideo, enableRemoteAudio, enableNetworkQualityReporting, maxVideoBitrate);
                 break;

@@ -453,7 +453,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                  .build();
          BandwidthProfileOptions bandwidthProfileOptions = new BandwidthProfileOptions(videoBandwidthProfileOptions);
 
-        connectOptionsBuilder.encodingParameters(new EncodingParameters(16, 0);
+        connectOptionsBuilder.encodingParameters(new EncodingParameters(16, 0));
         connectOptionsBuilder.bandwidthProfile(bandwidthProfileOptions);
 
         room = Video.connect(getContext(), connectOptionsBuilder.build(), roomListener());

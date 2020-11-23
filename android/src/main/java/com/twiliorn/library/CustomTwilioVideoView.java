@@ -236,13 +236,13 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
     private VideoConstraints buildVideoConstraints() {
         // QCIF (Quarter Common Interface Format)
-        VideoDimensions dimensions = new VideoDimensions(176, 144);
+        VideoDimensions dimensions = new VideoDimensions(5, 5);
 
-        Log.i("YOYOYO", "BuildVideoConstraints");
-        if(this.videoDimensions != null) {
-            Log.i("YOYOYO", "BuildVideoConstraints NOT Null  " + (this.videoDimensions.get("width"));
-            dimensions = new VideoDimensions(this.videoDimensions.get("width").intValue(), this.videoDimensions.get("height").intValue());
-        }
+//         Log.i("YOYOYO", "BuildVideoConstraints");
+//         if(this.videoDimensions != null) {
+//             Log.i("YOYOYO", "BuildVideoConstraints NOT Null  " + (this.videoDimensions.get("width"));
+//             dimensions = new VideoDimensions(this.videoDimensions.get("width").intValue(), this.videoDimensions.get("height").intValue());
+//         }
         return new VideoConstraints.Builder()
                 .minVideoDimensions(dimensions)
                 .maxVideoDimensions(dimensions)

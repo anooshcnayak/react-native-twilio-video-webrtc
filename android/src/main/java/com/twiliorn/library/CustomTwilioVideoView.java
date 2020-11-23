@@ -73,6 +73,7 @@ import com.twilio.video.VideoConstraints;
 import com.twilio.video.VideoDimensions;
 import com.twilio.video.EncodingParameters;
 import com.twilio.video.VideoBandwidthProfileOptions;
+import com.twilio.video.BandwidthProfileOptions;
 import com.twilio.video.BandwidthProfileMode;
 
 import org.webrtc.voiceengine.WebRtcAudioManager;
@@ -236,7 +237,10 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private VideoConstraints buildVideoConstraints() {
         // QCIF (Quarter Common Interface Format)
         VideoDimensions dimensions = new VideoDimensions(176, 144);
+
+        Log.i("YOYOYO", "BuildVideoConstraints");
         if(this.videoDimensions != null) {
+            Log.i("YOYOYO", "BuildVideoConstraints NOT Null  " + (this.videoDimensions.get("width"));
             dimensions = new VideoDimensions(this.videoDimensions.get("width").intValue(), this.videoDimensions.get("height").intValue());
         }
         return new VideoConstraints.Builder()

@@ -166,7 +166,8 @@ class CustomTwilioVideoView extends Component {
     enableAudio = true,
     enableVideo = true,
     enableRemoteAudio = true,
-    enableNetworkQualityReporting = false
+    enableNetworkQualityReporting = false,
+    videoDimensions
   }) {
     this.runCommand(nativeEvents.connectToRoom, [
       roomName,
@@ -174,7 +175,8 @@ class CustomTwilioVideoView extends Component {
       enableAudio,
       enableVideo,
       enableRemoteAudio,
-      enableNetworkQualityReporting
+      enableNetworkQualityReporting,
+      videoDimensions
     ])
   }
 

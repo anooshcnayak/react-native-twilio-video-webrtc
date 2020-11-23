@@ -87,6 +87,7 @@ public class CustomTwilioVideoViewManager extends SimpleViewManager<CustomTwilio
                 videoCaptureDimensionsMap.put("height", videoCaptureDimensions.getDouble("height"));
                 videoCaptureDimensionsMap.put("width", videoCaptureDimensions.getDouble("width"));
 
+Log.i("YOYOYO", "height  " + videoCaptureDimensions.getDouble("height"));
                 view.connectToRoomWrapper(roomName, accessToken, enableAudio, enableVideo, enableRemoteAudio, enableNetworkQualityReporting, videoCaptureDimensionsMap);
                 break;
             case DISCONNECT:

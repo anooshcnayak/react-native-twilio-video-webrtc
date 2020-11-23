@@ -194,7 +194,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
     private LocalDataTrack localDataTrack;
 
-    private VideoDimensions videoDimensions;
+    private Map<String, Double> videoDimensions;
 
     // Map used to map remote data tracks to remote participants
     private final Map<RemoteDataTrack, RemoteParticipant> dataTrackRemoteParticipantMap =

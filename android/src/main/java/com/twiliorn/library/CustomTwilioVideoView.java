@@ -111,6 +111,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private boolean enableRemoteAudio = false;
     private boolean enableNetworkQualityReporting = false;
     private boolean isVideoEnabled = false;
+    private int maxVideoBitrate = 1000;
 
     @Retention(RetentionPolicy.SOURCE)
     @StringDef({Events.ON_CAMERA_SWITCHED,
@@ -294,7 +295,8 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         }
 
         if (cameraCapturer.getSupportedFormats().size() > 0) {
-            localVideoTrack = LocalVideoTrack.create(getContext(), enableVideo, cameraCapturer, buildVideoConstraints());
+//             localVideoTrack = LocalVideoTrack.create(getContext(), enableVideo, cameraCapturer, buildVideoConstraints());
+            localVideoTrack = LocalVideoTrack.create(getContext(), enableVideo, cameraCapturer, 'video_feed');
             if (thumbnailVideoView != null && localVideoTrack != null) {
                 localVideoTrack.addRenderer(thumbnailVideoView);
             }
@@ -316,7 +318,8 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
              * If the local video track was released when the app was put in the background, recreate.
              */
             if (cameraCapturer != null && localVideoTrack == null) {
-                localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturer, buildVideoConstraints());
+//                 localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturer, buildVideoConstraints());
+                localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturer, 'video_feed');
             }
 
             if (localVideoTrack != null) {
@@ -400,12 +403,14 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
     public void connectToRoomWrapper(
             String roomName, String accessToken, boolean enableAudio, boolean enableVideo,
-            boolean enableRemoteAudio, boolean enableNetworkQualityReporting, Map<String, Double> videoCaptureDimensions) {
+            boolean enableRemoteAudio, boolean enableNetworkQualityReporting, Map<String, Double> videoCaptureDimensions,
+            int maxVideoBitrate) {
         this.roomName = roomName;
         this.accessToken = accessToken;
         this.enableRemoteAudio = enableAudio;
         this.enableNetworkQualityReporting = enableNetworkQualityReporting;
         this.videoDimensions = videoCaptureDimensions;
+        this.maxVideoBitrate = maxVideoBitrate;
 
         // Share your microphone
         localAudioTrack = LocalAudioTrack.create(getContext(), enableAudio);
@@ -457,7 +462,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                  .build();
          BandwidthProfileOptions bandwidthProfileOptions = new BandwidthProfileOptions(videoBandwidthProfileOptions);
 
-        connectOptionsBuilder.encodingParameters(new EncodingParameters(16, 0));
+        connectOptionsBuilder.encodingParameters(new EncodingParameters(16, this.maxVideoBitrate));
         connectOptionsBuilder.bandwidthProfile(bandwidthProfileOptions);
 
         room = Video.connect(getContext(), connectOptionsBuilder.build(), roomListener());

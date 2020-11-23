@@ -83,11 +83,12 @@ public class CustomTwilioVideoViewManager extends SimpleViewManager<CustomTwilio
                 boolean enableRemoteAudio = args.getBoolean(4);
                 boolean enableNetworkQualityReporting = args.getBoolean(5);
                 ReadableMap videoCaptureDimensions = args.getMap(6);
+                int maxVideoBitrate = args.getInt(7);
                 Map<String, Double> videoCaptureDimensionsMap = new HashMap<>();
                 videoCaptureDimensionsMap.put("height", videoCaptureDimensions.getDouble("height"));
                 videoCaptureDimensionsMap.put("width", videoCaptureDimensions.getDouble("width"));
 
-                view.connectToRoomWrapper(roomName, accessToken, enableAudio, enableVideo, enableRemoteAudio, enableNetworkQualityReporting, videoCaptureDimensionsMap);
+                view.connectToRoomWrapper(roomName, accessToken, enableAudio, enableVideo, enableRemoteAudio, enableNetworkQualityReporting, videoCaptureDimensionsMap, maxVideoBitrate);
                 break;
             case DISCONNECT:
                 view.disconnect();

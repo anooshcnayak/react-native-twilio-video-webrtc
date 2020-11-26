@@ -111,7 +111,8 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private boolean enableRemoteAudio = false;
     private boolean enableNetworkQualityReporting = false;
     private boolean isVideoEnabled = false;
-    private int maxVideoBitrate = 1000;
+    private int maxVideoBitrate = 100;
+    private int maxAudioBitrate = 16;
 
     @Retention(RetentionPolicy.SOURCE)
     @StringDef({Events.ON_CAMERA_SWITCHED,
@@ -404,12 +405,13 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     public void connectToRoomWrapper(
             String roomName, String accessToken, boolean enableAudio, boolean enableVideo,
             boolean enableRemoteAudio, boolean enableNetworkQualityReporting,
-            int maxVideoBitrate) {
+            int maxVideoBitrate, int maxAudioBitrate) {
         this.roomName = roomName;
         this.accessToken = accessToken;
         this.enableRemoteAudio = enableAudio;
         this.enableNetworkQualityReporting = enableNetworkQualityReporting;
         this.maxVideoBitrate = maxVideoBitrate;
+        this.maxAudioBitrate = maxAudioBitrate;
 
         // Share your microphone
         localAudioTrack = LocalAudioTrack.create(getContext(), enableAudio);
@@ -461,7 +463,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                  .build();
          BandwidthProfileOptions bandwidthProfileOptions = new BandwidthProfileOptions(videoBandwidthProfileOptions);
 
-        connectOptionsBuilder.encodingParameters(new EncodingParameters(16, this.maxVideoBitrate));
+        connectOptionsBuilder.encodingParameters(new EncodingParameters(this.maxAudioBitrate, this.maxVideoBitrate));
         connectOptionsBuilder.bandwidthProfile(bandwidthProfileOptions);
 
         room = Video.connect(getContext(), connectOptionsBuilder.build(), roomListener());

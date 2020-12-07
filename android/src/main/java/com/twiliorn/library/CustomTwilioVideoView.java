@@ -34,6 +34,15 @@ import com.facebook.react.bridge.WritableNativeArray;
 import com.facebook.react.bridge.WritableNativeMap;
 import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
+
+
+import com.twilio.audioswitch.AudioDevice;
+import com.twilio.audioswitch.AudioDevice.BluetoothHeadset;
+import com.twilio.audioswitch.AudioDevice.WiredHeadset;
+import com.twilio.audioswitch.AudioDevice.Earpiece;
+import com.twilio.audioswitch.AudioDevice.Speakerphone;
+import com.twilio.audioswitch.AudioSwitch;
+
 import com.twilio.video.AudioTrackPublication;
 import com.twilio.video.BaseTrackStats;
 import com.twilio.video.CameraCapturer;
@@ -75,6 +84,7 @@ import com.twilio.video.EncodingParameters;
 import com.twilio.video.VideoBandwidthProfileOptions;
 import com.twilio.video.BandwidthProfileOptions;
 import com.twilio.video.BandwidthProfileMode;
+import com.twilio.video.VideoFormat;
 
 import org.webrtc.voiceengine.WebRtcAudioManager;
 
@@ -113,6 +123,11 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private boolean isVideoEnabled = false;
     private int maxVideoBitrate = 100;
     private int maxAudioBitrate = 16;
+
+    /*
+     * Audio management
+     */
+    private AudioSwitch audioSwitch;
 
     @Retention(RetentionPolicy.SOURCE)
     @StringDef({Events.ON_CAMERA_SWITCHED,
@@ -220,7 +235,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         /*
          * Needed for setting/abandoning audio focus during call
          */
-        audioManager = (AudioManager) themedReactContext.getSystemService(Context.AUDIO_SERVICE);
+        // audioManager = (AudioManager) themedReactContext.getSystemService(Context.AUDIO_SERVICE);
         myNoisyAudioStreamReceiver = new BecomingNoisyReceiver();
         intentFilter = new IntentFilter(Intent.ACTION_HEADSET_PLUG);
 
@@ -232,9 +247,15 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         dataTrackMessageThread.start();
         dataTrackMessageThreadHandler = new Handler(dataTrackMessageThread.getLooper());
 
+        audioSwitch = new AudioSwitch(getContext());
     }
 
     // ===== SETUP =================================================================================
+
+    private VideoFormat buildVideoFormat() {
+      VideoFormat videoFormat = new VideoFormat(new VideoDimensions(50, 50), 20);
+      return videoFormat;
+    }
 
     private VideoConstraints buildVideoConstraints() {
         // QCIF (Quarter Common Interface Format)
@@ -297,9 +318,9 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
         if (cameraCapturer.getSupportedFormats().size() > 0) {
 //             localVideoTrack = LocalVideoTrack.create(getContext(), enableVideo, cameraCapturer, buildVideoConstraints());
-            localVideoTrack = LocalVideoTrack.create(getContext(), enableVideo, cameraCapturer, "video_feed");
+            localVideoTrack = LocalVideoTrack.create(getContext(), enableVideo, cameraCapturer, buildVideoFormat());
             if (thumbnailVideoView != null && localVideoTrack != null) {
-                localVideoTrack.addRenderer(thumbnailVideoView);
+                localVideoTrack.addSink(thumbnailVideoView);
             }
             setThumbnailMirror();
         }
@@ -320,12 +341,12 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
              */
             if (cameraCapturer != null && localVideoTrack == null) {
 //                 localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturer, buildVideoConstraints());
-                localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturer, "video_feed");
+                localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturer, buildVideoFormat());
             }
 
             if (localVideoTrack != null) {
                 if (thumbnailVideoView != null) {
-                    localVideoTrack.addRenderer(thumbnailVideoView);
+                    localVideoTrack.addSink(thumbnailVideoView);
                 }
 
                 /*
@@ -470,6 +491,19 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     }
 
     private void setAudioFocus(boolean focus) {
+
+        if(focus) {
+          audioSwitch.start((audioDevices, audioDevice) -> {
+                          updateAudioDeviceIcon(audioDevice);
+                          return Unit.INSTANCE;
+                      });
+          audioSwitch.activate();
+        } else {
+          audioSwitch.deactivate();
+        }
+
+        if(true) return;
+
         if (focus) {
             previousAudioMode = audioManager.getMode();
             // Request audio focus before making any device switch.
@@ -526,7 +560,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         public void onReceive(Context context, Intent intent) {
 //            audioManager.setSpeakerphoneOn(true);
             if (Intent.ACTION_HEADSET_PLUG.equals(intent.getAction())) {
-                audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
+               // audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
             }
         }
     }
@@ -727,8 +761,16 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         WritableMap dimensions = new WritableNativeMap();
         dimensions.putInt("height", vs.dimensions.height);
         dimensions.putInt("width", vs.dimensions.width);
+
+        WritableMap captureDimensions = new WritableNativeMap();
+        captureDimensions.putInt("height", vs.captureDimensions.height);
+        captureDimensions.putInt("width", vs.captureDimensions.width);
+
+        result.putMap("captureDimensions", captureDimensions);
         result.putMap("dimensions", dimensions);
         result.putInt("frameRate", vs.frameRate);
+        result.putInt("capturedFrameRate", vs.capturedFrameRate);
+
         convertBaseTrackStats(vs, result);
         convertLocalTrackStats(vs, result);
         return result;
@@ -819,6 +861,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                 event.putString("roomSid", room.getSid());
                 event.putString("error", e.getMessage());
                 pushEvent(CustomTwilioVideoView.this, ON_CONNECT_FAILURE, event);
+                audioSwitch.deactivate();
             }
 
             @Override
@@ -1161,9 +1204,9 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                         continue;
                     }
                     if (publication.getTrackSid().equals(trackSid)) {
-                        track.addRenderer(v);
+                        track.addSink(v);
                     } else {
-                        track.removeRenderer(v);
+                        track.removeSink(v);
                     }
                 }
             }
@@ -1173,7 +1216,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     public static void registerThumbnailVideoView(PatchedVideoView v) {
         thumbnailVideoView = v;
         if (localVideoTrack != null) {
-            localVideoTrack.addRenderer(v);
+            localVideoTrack.addSink(v);
         }
         setThumbnailMirror();
     }

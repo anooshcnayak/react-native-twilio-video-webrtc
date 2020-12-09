@@ -7,7 +7,7 @@
 
 package com.twiliorn.library;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.common.MapBuilder;
@@ -17,7 +17,8 @@ import com.facebook.react.uimanager.annotations.ReactProp;
 
 import java.util.Map;
 
-import org.webrtc.RendererCommon;
+
+import tvi.webrtc.RendererCommon;
 
 import static com.twiliorn.library.RNVideoViewGroup.Events.ON_FRAME_DIMENSIONS_CHANGED;
 

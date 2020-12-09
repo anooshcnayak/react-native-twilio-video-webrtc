@@ -8,7 +8,7 @@
  */
 package com.twiliorn.library;
 
-import android.support.annotation.Nullable;
+import androidx.annotation.Nullable;
 
 import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.bridge.ReadableMap;
@@ -84,8 +84,9 @@ public class CustomTwilioVideoViewManager extends SimpleViewManager<CustomTwilio
                 boolean enableNetworkQualityReporting = args.getBoolean(5);
                 int maxVideoBitrate = args.getInt(6);
                 int maxAudioBitrate = args.getInt(7);
+                int maxFps = args.getInt(8);
 
-                view.connectToRoomWrapper(roomName, accessToken, enableAudio, enableVideo, enableRemoteAudio, enableNetworkQualityReporting, maxVideoBitrate, maxAudioBitrate);
+                view.connectToRoomWrapper(roomName, accessToken, enableAudio, enableVideo, enableRemoteAudio, enableNetworkQualityReporting, maxVideoBitrate, maxAudioBitrate, maxFps);
                 break;
             case DISCONNECT:
                 view.disconnect();

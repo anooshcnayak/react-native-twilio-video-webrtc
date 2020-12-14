@@ -249,30 +249,30 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         dataTrackMessageThread.start();
         dataTrackMessageThreadHandler = new Handler(dataTrackMessageThread.getLooper());
 
-        audioSwitch = new AudioSwitch(getContext(), true, new AudioManager.OnAudioFocusChangeListener() {
-            @Override
-            public void onAudioFocusChange(int focusChange) {
-
-                Log.e(TAG, "Audioswitch:: onAudioFocusChange: focuschange: " + focusChange);
-
-                switch (focusChange) {
-                    case AudioManager.AUDIOFOCUS_GAIN:
-
-                        audioSwitch.activate();
-                        break;
-                    case AudioManager.AUDIOFOCUS_LOSS:
-                    case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-
-                        audioSwitch.deactivate();
-                        break;
-                    case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                        // ... pausing or ducking depends on your app
-                        audioSwitch.deactivate();
-                        break;
-                }
-
-            }
-        });
+//        audioSwitch = new AudioSwitch(getContext(), true, new AudioManager.OnAudioFocusChangeListener() {
+//            @Override
+//            public void onAudioFocusChange(int focusChange) {
+//
+//                Log.e(TAG, "Audioswitch:: onAudioFocusChange: focuschange: " + focusChange);
+//
+//                switch (focusChange) {
+//                    case AudioManager.AUDIOFOCUS_GAIN:
+//
+//                        audioSwitch.activate();
+//                        break;
+//                    case AudioManager.AUDIOFOCUS_LOSS:
+//                    case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+//
+//                        audioSwitch.deactivate();
+//                        break;
+//                    case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+//                        // ... pausing or ducking depends on your app
+//                        audioSwitch.deactivate();
+//                        break;
+//                }
+//
+//            }
+//        });
     }
 
     // ===== SETUP =================================================================================
@@ -475,17 +475,17 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
     private void setAudioFocus(boolean focus) {
 
-        if(focus) {
-          audioSwitch.start((audioDevices, audioDevice) -> {
-
-                          return Unit.INSTANCE;
-                      });
-          audioSwitch.activate();
-        } else {
-          audioSwitch.deactivate();
-        }
-
-        if(true) return;
+//        if(focus) {
+//          audioSwitch.start((audioDevices, audioDevice) -> {
+//
+//                          return Unit.INSTANCE;
+//                      });
+//          audioSwitch.activate();
+//        } else {
+//          audioSwitch.deactivate();
+//        }
+//
+//        if(true) return;
 
         if (focus) {
             previousAudioMode = audioManager.getMode();
@@ -516,7 +516,6 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
             audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
             audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
             getContext().registerReceiver(myNoisyAudioStreamReceiver, intentFilter);
-
         } else {
             if (android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
                 audioManager.abandonAudioFocus(this);
@@ -541,9 +540,9 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private class BecomingNoisyReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-//            audioManager.setSpeakerphoneOn(true);
+            audioManager.setSpeakerphoneOn(true);
             if (Intent.ACTION_HEADSET_PLUG.equals(intent.getAction())) {
-               // audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
+                audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
             }
         }
     }
@@ -551,6 +550,22 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     @Override
     public void onAudioFocusChange(int focusChange) {
         Log.e(TAG, "onAudioFocusChange: focuschange: " + focusChange);
+
+        switch (focusChange) {
+            case AudioManager.AUDIOFOCUS_GAIN:
+
+                setAudioFocus(true);
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS:
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+
+                setAudioFocus(false);
+                break;
+            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                // ... pausing or ducking depends on your app
+                setAudioFocus(false);
+                break;
+        }
     }
 
     // ====== DISCONNECTING ========================================================================

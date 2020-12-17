@@ -156,7 +156,8 @@ const nativeEvents = {
   sendString: 12,
   publishVideo: 13,
   publishAudio: 14,
-  toggleParticipantAudio: 15
+  toggleParticipantAudio: 15,
+  toggleParticipantVideo: 16
 }
 
 class CustomTwilioVideoView extends Component {
@@ -167,9 +168,9 @@ class CustomTwilioVideoView extends Component {
     enableVideo = true,
     enableRemoteAudio = true,
     enableNetworkQualityReporting = false,
-    maxVideoBitrate = 100,
-    maxAudioBitrate = 16,
-      maxFps = 30
+    maxVideoBitrate = 0, // default
+    maxAudioBitrate = 0, // default
+      maxFps = 30 // default
   }) {
     this.runCommand(nativeEvents.connectToRoom, [
       roomName,
@@ -250,8 +251,12 @@ class CustomTwilioVideoView extends Component {
     this.runCommand(nativeEvents.toggleSoundSetup, [speaker])
   }
 
-  toggleParticipantAudio(trackSid, enabled) {
-    this.runCommand(nativeEvents.toggleParticipantAudio, [trackSid, enabled])
+  toggleParticipantAudio(participantSid, enabled) {
+    this.runCommand(nativeEvents.toggleParticipantAudio, [participantSid, enabled])
+  }
+
+  toggleParticipantVideo(participantSid, enabled) {
+    this.runCommand(nativeEvents.toggleParticipantVideo, [participantSid, enabled])
   }
 
   runCommand (event, args) {

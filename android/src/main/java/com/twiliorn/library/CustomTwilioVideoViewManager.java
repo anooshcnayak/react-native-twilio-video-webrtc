@@ -61,6 +61,7 @@ public class CustomTwilioVideoViewManager extends SimpleViewManager<CustomTwilio
     private static final int PUBLISH_VIDEO = 13;
     private static final int PUBLISH_AUDIO = 14;
     private static final int TOGGLE_PARTICIPANT_AUDIO = 15;
+    private static final int TOGGLE_PARTICIPANT_VIDEO = 16;
 
     @Override
     public String getName() {
@@ -135,6 +136,9 @@ public class CustomTwilioVideoViewManager extends SimpleViewManager<CustomTwilio
             case TOGGLE_PARTICIPANT_AUDIO:
                 view.toggleParticipantAudio(args.getString(0), args.getBoolean(1));
                 break;
+            case TOGGLE_PARTICIPANT_VIDEO:
+                view.toggleParticipantVideo(args.getString(0), args.getBoolean(1));
+                break;
         }
     }
 
@@ -191,6 +195,8 @@ public class CustomTwilioVideoViewManager extends SimpleViewManager<CustomTwilio
                 .put("toggleRemoteSound", TOGGLE_REMOTE_SOUND)
                 .put("toggleBluetoothHeadset", TOGGLE_BLUETOOTH_HEADSET)
                 .put("sendString", SEND_STRING)
+                .put("toggleParticipantAudio", TOGGLE_PARTICIPANT_AUDIO)
+                .put("toggleParticipantVideo", TOGGLE_PARTICIPANT_VIDEO)
                 .build();
     }
 }

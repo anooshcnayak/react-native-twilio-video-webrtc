@@ -36,16 +36,8 @@ import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
 
 
-import com.twilio.audioswitch.AudioDevice;
-import com.twilio.audioswitch.AudioDevice.BluetoothHeadset;
-import com.twilio.audioswitch.AudioDevice.WiredHeadset;
-import com.twilio.audioswitch.AudioDevice.Earpiece;
-import com.twilio.audioswitch.AudioDevice.Speakerphone;
-import com.twilio.audioswitch.AudioSwitch;
-
 import com.twilio.video.AudioTrackPublication;
 import com.twilio.video.BaseTrackStats;
-import com.twilio.video.CameraCapturer;
 import com.twilio.video.ConnectOptions;
 import com.twilio.video.LocalAudioTrack;
 import com.twilio.video.LocalAudioTrackPublication;
@@ -72,7 +64,6 @@ import com.twilio.video.RemoteVideoTrack;
 import com.twilio.video.RemoteVideoTrackPublication;
 import com.twilio.video.RemoteVideoTrackStats;
 import com.twilio.video.Room;
-import com.twilio.video.Room.State;
 import com.twilio.video.StatsListener;
 import com.twilio.video.StatsReport;
 import com.twilio.video.TrackPublication;
@@ -84,8 +75,8 @@ import com.twilio.video.VideoBandwidthProfileOptions;
 import com.twilio.video.BandwidthProfileOptions;
 import com.twilio.video.BandwidthProfileMode;
 import com.twilio.video.VideoFormat;
+import com.twilio.video.VideoTrackPublication;
 
-import kotlin.Unit;
 import tvi.webrtc.voiceengine.WebRtcAudioManager;
 
 import java.lang.annotation.Retention;
@@ -124,11 +115,6 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private int maxVideoBitrate = 100;
     private int maxAudioBitrate = 16;
     private int maxFps = 30;
-
-    /*
-     * Audio management
-     */
-    private AudioSwitch audioSwitch;
 
     @Retention(RetentionPolicy.SOURCE)
     @StringDef({Events.ON_CAMERA_SWITCHED,
@@ -220,6 +206,8 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private final Map<RemoteDataTrack, RemoteParticipant> dataTrackRemoteParticipantMap =
             new HashMap<>();
 
+    private static Map<String, PatchedVideoView> trackVideoSinkMap = new HashMap<>();
+
     public CustomTwilioVideoView(ThemedReactContext context) {
         super(context);
         this.themedReactContext = context;
@@ -248,31 +236,6 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
        // Start the thread where data messages are received
         dataTrackMessageThread.start();
         dataTrackMessageThreadHandler = new Handler(dataTrackMessageThread.getLooper());
-
-//        audioSwitch = new AudioSwitch(getContext(), true, new AudioManager.OnAudioFocusChangeListener() {
-//            @Override
-//            public void onAudioFocusChange(int focusChange) {
-//
-//                Log.e(TAG, "Audioswitch:: onAudioFocusChange: focuschange: " + focusChange);
-//
-//                switch (focusChange) {
-//                    case AudioManager.AUDIOFOCUS_GAIN:
-//
-//                        audioSwitch.activate();
-//                        break;
-//                    case AudioManager.AUDIOFOCUS_LOSS:
-//                    case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-//
-//                        audioSwitch.deactivate();
-//                        break;
-//                    case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-//                        // ... pausing or ducking depends on your app
-//                        audioSwitch.deactivate();
-//                        break;
-//                }
-//
-//            }
-//        });
     }
 
     // ===== SETUP =================================================================================
@@ -401,6 +364,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         localVideoTrack = null;
         thumbnailVideoView = null;
         cameraCapturerCompat = null;
+        trackVideoSinkMap.clear();
     }
 
     // ====== CONNECTING ===========================================================================
@@ -474,18 +438,6 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     }
 
     private void setAudioFocus(boolean focus) {
-
-//        if(focus) {
-//          audioSwitch.start((audioDevices, audioDevice) -> {
-//
-//                          return Unit.INSTANCE;
-//                      });
-//          audioSwitch.activate();
-//        } else {
-//          audioSwitch.deactivate();
-//        }
-//
-//        if(true) return;
 
         if (focus) {
             previousAudioMode = audioManager.getMode();
@@ -673,14 +625,39 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         }
     }
 
-    public void toggleParticipantAudio(String trackSid, boolean enabled) {
+    public void toggleParticipantAudio(String participantSid, boolean enabled) {
         if (room != null) {
             for (RemoteParticipant rp : room.getRemoteParticipants()) {
-                for(AudioTrackPublication at : rp.getAudioTracks()) {
-                    if(at.getAudioTrack() != null) {
-                        RemoteAudioTrack remoteAudioTrack = (RemoteAudioTrack)at.getAudioTrack();
-                        if(remoteAudioTrack.getSid().equalsIgnoreCase(trackSid)) {
-                          ((RemoteAudioTrack)at.getAudioTrack()).enablePlayback(enabled);
+                if(rp.getSid() != null && rp.getSid().equals(participantSid)) {
+                    for(AudioTrackPublication at : rp.getAudioTracks()) {
+                        if(at.getAudioTrack() != null) {
+                            RemoteAudioTrack remoteAudioTrack = (RemoteAudioTrack)at.getAudioTrack();
+                            remoteAudioTrack.enablePlayback(enabled);
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public void toggleParticipantVideo(String participantSid, boolean enabled) {
+        if (room != null) {
+            for (RemoteParticipant rp : room.getRemoteParticipants()) {
+                if(rp.getSid() != null && rp.getSid().equals(participantSid)) {
+                    for(RemoteVideoTrackPublication vt : rp.getRemoteVideoTracks()) {
+                        if(vt.getVideoTrack() != null) {
+                            RemoteVideoTrack remoteVideoTrack = vt.getRemoteVideoTrack();
+                            String trackSid = remoteVideoTrack.getSid();
+
+                            if(enabled) {
+                                PatchedVideoView sink = trackVideoSinkMap.get(trackSid);
+                                // Remove First to not add duplicate Sink
+                                remoteVideoTrack.removeSink(sink); // TODO videoSinks are SET - Check PatchedVideo hashcode issues & delete removeSink line
+                                remoteVideoTrack.addSink(sink);
+                            } else {
+                                PatchedVideoView sink = trackVideoSinkMap.get(trackSid);
+                                remoteVideoTrack.removeSink(sink);
+                            }
                         }
                     }
                 }
@@ -847,7 +824,6 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
                 pushEvent(CustomTwilioVideoView.this, ON_CONNECTED, event);
 
-
                 //There is not .publish it's publishTrack
                 localParticipant.publishTrack(localDataTrack);
 
@@ -863,7 +839,6 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                 event.putString("roomSid", room.getSid());
                 event.putString("error", e.getMessage());
                 pushEvent(CustomTwilioVideoView.this, ON_CONNECT_FAILURE, event);
-                audioSwitch.deactivate();
             }
 
             @Override
@@ -1207,6 +1182,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                     }
                     if (publication.getTrackSid().equals(trackSid)) {
                         track.addSink(v);
+                        trackVideoSinkMap.put(trackSid, v);
                     } else {
                         track.removeSink(v);
                     }

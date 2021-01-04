@@ -39,6 +39,7 @@ import com.facebook.react.uimanager.events.RCTEventEmitter;
 import com.twilio.video.AudioTrackPublication;
 import com.twilio.video.BaseTrackStats;
 import com.twilio.video.ConnectOptions;
+import com.twilio.video.IceCandidatePairStats;
 import com.twilio.video.LocalAudioTrack;
 import com.twilio.video.LocalAudioTrackPublication;
 import com.twilio.video.LocalAudioTrackStats;
@@ -231,7 +232,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
         // Create the local data track
        // localDataTrack = LocalDataTrack.create(this);
-       localDataTrack = LocalDataTrack.create(getContext());
+//       localDataTrack = LocalDataTrack.create(getContext());
 
        // Start the thread where data messages are received
         dataTrackMessageThread.start();
@@ -416,7 +417,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         //LocalDataTrack localDataTrack = LocalDataTrack.create(getContext());
 
          if (localDataTrack != null) {
-            connectOptionsBuilder.dataTracks(Collections.singletonList(localDataTrack));
+//            connectOptionsBuilder.dataTracks(Collections.singletonList(localDataTrack));
         }
 
          if (enableNetworkQualityReporting) {
@@ -575,14 +576,49 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     }
 
     public void toggleVideo(boolean enabled) {
+
       isVideoEnabled = enabled;
-        if (localVideoTrack != null) {
-            localVideoTrack.enable(enabled);
+
+        // Recommended Approach for Toggling Video is to Unpublish it
+        // https://github.com/twilio/twilio-video-app-react/issues/180
+        if(localParticipant != null) {
+            if(enabled) {
+                // TODO Do we need to check whether aleradyR present in published tracks
+
+                if(cameraCapturerCompat == null)
+                    cameraCapturerCompat = new CameraCapturerCompat(getContext(), CameraCapturerCompat.Source.FRONT_CAMERA);
+
+                if (cameraCapturerCompat == null){
+                    cameraCapturerCompat = new CameraCapturerCompat(getContext(), CameraCapturerCompat.Source.BACK_CAMERA);
+                }
+
+                if (cameraCapturerCompat != null && localVideoTrack == null) {
+                    localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturerCompat, buildVideoFormat());
+                }
+
+                if (localVideoTrack != null) {
+                    if (thumbnailVideoView != null) {
+                        localVideoTrack.addSink(thumbnailVideoView);
+                    }
+
+                    /*
+                     * If connected to a Room then share the local video track.
+                     */
+                    localParticipant.publishTrack(localVideoTrack);
+                }
+            } else {
+                if(localVideoTrack != null) {
+                    localParticipant.unpublishTrack(localVideoTrack);
+                    localVideoTrack.release();
+                    localVideoTrack = null;
+                }
+            }
 
             WritableMap event = new WritableNativeMap();
             event.putBoolean("videoEnabled", enabled);
             pushEvent(CustomTwilioVideoView.this, ON_VIDEO_CHANGED, event);
         }
+
     }
 
     public void toggleSoundSetup(boolean speaker){
@@ -755,6 +791,17 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         return result;
     }
 
+    private WritableMap convertIceCandidatePairStats(IceCandidatePairStats is) {
+        WritableMap result = new WritableNativeMap();
+
+        result.putString("localCandidateId", is.localCandidateId);
+        result.putString("remoteCandidateId", is.remoteCandidateId);
+        result.putDouble("availableOutgoingBitrate", is.availableOutgoingBitrate);
+        result.putDouble("availableIncomingBitrate", is.availableIncomingBitrate);
+
+        return result;
+    }
+
     public void getStats() {
         if (room != null) {
             room.getStats(new StatsListener() {
@@ -786,6 +833,13 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                             lvs.pushMap(convertLocalVideoTrackStats(s));
                         }
                         connectionStats.putArray("localVideoTrackStats", lvs);
+
+                        WritableArray iceStats = new WritableNativeArray();
+                        for (IceCandidatePairStats s : sr.getIceCandidatePairStats()) {
+                            iceStats.pushMap(convertIceCandidatePairStats(s));
+                        }
+                        connectionStats.putArray("iceCandidatePairStats", iceStats);
+
                         event.putMap(sr.getPeerConnectionId(), connectionStats);
                     }
                     pushEvent(CustomTwilioVideoView.this, ON_STATS_RECEIVED, event);
@@ -825,7 +879,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                 pushEvent(CustomTwilioVideoView.this, ON_CONNECTED, event);
 
                 //There is not .publish it's publishTrack
-                localParticipant.publishTrack(localDataTrack);
+//                localParticipant.publishTrack(localDataTrack);
 
                 for (RemoteParticipant participant : participants) {
                     addParticipant(room, participant);

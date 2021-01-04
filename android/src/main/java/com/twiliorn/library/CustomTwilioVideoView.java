@@ -376,7 +376,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
             int maxVideoBitrate, int maxAudioBitrate, int maxFps) {
         this.roomName = roomName;
         this.accessToken = accessToken;
-        this.enableRemoteAudio = enableAudio;
+        this.enableRemoteAudio = enableRemoteAudio;
         this.enableNetworkQualityReporting = enableNetworkQualityReporting;
         this.maxVideoBitrate = maxVideoBitrate;
         this.maxAudioBitrate = maxAudioBitrate;

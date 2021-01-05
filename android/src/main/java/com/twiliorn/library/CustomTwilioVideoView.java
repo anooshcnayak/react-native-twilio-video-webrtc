@@ -631,12 +631,21 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     }
 
     public void toggleAudio(boolean enabled) {
-        if (localAudioTrack != null) {
-            localAudioTrack.enable(enabled);
 
-            WritableMap event = new WritableNativeMap();
-            event.putBoolean("audioEnabled", enabled);
-            pushEvent(CustomTwilioVideoView.this, ON_AUDIO_CHANGED, event);
+        if(localParticipant != null) {
+            if(enabled) {
+                if(localAudioTrack == null) {
+                    localAudioTrack = LocalAudioTrack.create(getContext(), enabled);
+                }
+
+                localParticipant.publishTrack(localAudioTrack);
+            } else {
+                if(localAudioTrack != null) {
+                    localParticipant.unpublishTrack(localAudioTrack);
+                    localAudioTrack.release();
+                    localAudioTrack = null;
+                }
+            }
         }
     }
 

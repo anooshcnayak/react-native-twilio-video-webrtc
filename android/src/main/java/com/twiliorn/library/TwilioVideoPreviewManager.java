@@ -50,6 +50,7 @@ public class TwilioVideoPreviewManager extends SimpleViewManager<TwilioVideoPrev
         Log.i("CustomTwilioVideoView", "Initialize Twilio LOCAL");
         Log.i("CustomTwilioVideoView", "Enabled value is " + enabled);
         this.enabled = enabled;
+        CustomTwilioVideoView.registerThumbnailVideoView(view.getSurfaceViewRenderer(), enabled);
     }
 
     @Override

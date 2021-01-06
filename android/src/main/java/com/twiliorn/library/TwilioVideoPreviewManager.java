@@ -7,6 +7,8 @@
 
 package com.twiliorn.library;
 
+import android.util.Log;
+
 import androidx.annotation.Nullable;
 
 import com.facebook.react.bridge.ReadableArray;
@@ -26,6 +28,8 @@ public class TwilioVideoPreviewManager extends SimpleViewManager<TwilioVideoPrev
 
     public static final String REACT_CLASS = "RNTwilioVideoPreview";
 
+    public boolean enabled = false;
+
     @Override
     public String getName() {
         return REACT_CLASS;
@@ -40,6 +44,14 @@ public class TwilioVideoPreviewManager extends SimpleViewManager<TwilioVideoPrev
       }
     }
 
+    @ReactProp(name = "enabled")
+    public void setEnabled(TwilioVideoPreview view, @Nullable boolean enabled) {
+
+        Log.i("CustomTwilioVideoView", "Initialize Twilio LOCAL");
+        Log.i("CustomTwilioVideoView", "Enabled value is " + enabled);
+        this.enabled = enabled;
+    }
+
     @Override
     @Nullable
     public Map getExportedCustomDirectEventTypeConstants() {
@@ -52,6 +64,6 @@ public class TwilioVideoPreviewManager extends SimpleViewManager<TwilioVideoPrev
 
     @Override
     protected TwilioVideoPreview createViewInstance(ThemedReactContext reactContext) {
-        return new TwilioVideoPreview(reactContext);
+        return new TwilioVideoPreview(reactContext, this.enabled);
     }
 }

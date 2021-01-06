@@ -47,7 +47,7 @@ public class TwilioRemotePreviewManager extends SimpleViewManager<TwilioRemotePr
         Log.i("CustomTwilioVideoView", "Initialize Twilio REMOTE");
         Log.i("CustomTwilioVideoView", trackSid);
         myTrackSid = trackSid;
-        CustomTwilioVideoView.registerPrimaryVideoView(view.getSurfaceViewRenderer(), trackSid);
+//        CustomTwilioVideoView.registerPrimaryVideoView(view.getSurfaceViewRenderer(), trackSid);
     }
 
 

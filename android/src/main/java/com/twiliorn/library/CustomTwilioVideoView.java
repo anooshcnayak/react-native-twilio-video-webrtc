@@ -544,6 +544,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
             }
             cameraCapturerCompat = null;
         }
+        trackVideoSinkMap.clear();
     }
 
     // ===== SEND STRING ON DATA TRACK ======================================================================
@@ -605,6 +606,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                      * If connected to a Room then share the local video track.
                      */
                     localParticipant.publishTrack(localVideoTrack);
+                    setThumbnailMirror();
                 }
             } else {
                 if(localVideoTrack != null) {
@@ -697,11 +699,16 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                             if(enabled) {
                                 PatchedVideoView sink = trackVideoSinkMap.get(trackSid);
                                 // Remove First to not add duplicate Sink
-                                remoteVideoTrack.removeSink(sink); // TODO videoSinks are SET - Check PatchedVideo hashcode issues & delete removeSink line
-                                remoteVideoTrack.addSink(sink);
+                                if(sink != null) {
+                                    remoteVideoTrack.removeSink(sink);
+                                    remoteVideoTrack.addSink(sink);
+                                    trackVideoSinkMap.put(trackSid, sink);
+                                }
                             } else {
                                 PatchedVideoView sink = trackVideoSinkMap.get(trackSid);
-                                remoteVideoTrack.removeSink(sink);
+                                if(sink != null) {
+                                    remoteVideoTrack.removeSink(sink);
+                                }
                             }
                         }
                     }
@@ -1254,7 +1261,10 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         }
     }
 
-    public static void registerThumbnailVideoView(PatchedVideoView v) {
+    public static void registerThumbnailVideoView(PatchedVideoView v, boolean enabled) {
+        if(enabled == false) {
+            return;
+        }
         thumbnailVideoView = v;
         if (localVideoTrack != null) {
             localVideoTrack.addSink(v);

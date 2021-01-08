@@ -653,6 +653,13 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
         if(localParticipant != null) {
             if(enabled) {
+
+                if(localAudioTrack != null) {
+                    localParticipant.unpublishTrack(localAudioTrack);
+                    localAudioTrack.release();
+                    localAudioTrack = null;
+                }
+
                 if(localAudioTrack == null) {
                     localAudioTrack = LocalAudioTrack.create(getContext(), enabled);
                 }

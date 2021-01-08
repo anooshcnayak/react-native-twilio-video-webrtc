@@ -509,16 +509,16 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         switch (focusChange) {
             case AudioManager.AUDIOFOCUS_GAIN:
 
-                setAudioFocus(true);
+//                setAudioFocus(true);
                 break;
             case AudioManager.AUDIOFOCUS_LOSS:
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
 
-                setAudioFocus(true);
+//                setAudioFocus(true);
                 break;
             case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
                 // ... pausing or ducking depends on your app
-                setAudioFocus(true);
+//                setAudioFocus(true);
                 break;
         }
     }

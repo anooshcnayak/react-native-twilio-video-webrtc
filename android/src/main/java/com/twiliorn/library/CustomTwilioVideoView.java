@@ -179,13 +179,15 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private LocalParticipant localParticipant;
 
     private static Map<String, Room> allRooms = new HashMap<>();
+    private static Map<String, PatchedVideoView> allThumbnailViews = new HashMap<>();
+    private static Map<String, CustomTwilioVideoView> allViews = new HashMap<>();
 
     /*
      * A VideoView receives frames from a local or remote video track and renders them
      * to an associated view.
      */
-    private static PatchedVideoView thumbnailVideoView;
-    private static LocalVideoTrack localVideoTrack;
+    private PatchedVideoView thumbnailVideoView;
+    private LocalVideoTrack localVideoTrack;
 
     private static CameraCapturerCompat cameraCapturerCompat;
 
@@ -266,6 +268,10 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         }
 
         localVideoTrack = LocalVideoTrack.create(getContext(), enableVideo, cameraCapturerCompat, buildVideoFormat());
+        if(thumbnailVideoView == null) {
+            thumbnailVideoView = allThumbnailViews.get(roomName);
+        }
+
         if (thumbnailVideoView != null && localVideoTrack != null) {
             localVideoTrack.addSink(thumbnailVideoView);
         }
@@ -378,6 +384,10 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
             boolean enableRemoteAudio, boolean enableNetworkQualityReporting,
             int maxVideoBitrate, int maxAudioBitrate, int maxFps) {
         Log.i("CustomTwilioVideoView", "Connecting to Room " + roomName);
+
+        if(roomName == null) return;
+
+        allViews.put(roomName, this);
 
         this.roomName = roomName;
         this.accessToken = accessToken;
@@ -539,6 +549,9 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         }
 
         allRooms.remove(roomName);
+        allViews.remove(roomName);
+        allThumbnailViews.remove(roomName);
+
         if (room != null) {
             Log.i("CustomTwilioVideoView", "Disconnect room: Room disc " + room.getName());
             room.disconnect();
@@ -575,7 +588,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     }
 
     // ===== BUTTON LISTENERS ======================================================================
-    private static void setThumbnailMirror() {
+    private void setThumbnailMirror() {
         if (cameraCapturerCompat != null) {
             CameraCapturerCompat.Source source = cameraCapturerCompat.getCameraSource();
             final boolean isBackCamera = source == CameraCapturerCompat.Source.BACK_CAMERA;
@@ -972,6 +985,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                 }
                 pushEvent(CustomTwilioVideoView.this, ON_DISCONNECTED, event);
 
+                roomName = null;
 //                CustomTwilioVideoView.room = null;
                 // Only reinitialize the UI if disconnect was not called from onDestroy()
                 if (!disconnectedFromOnDestroy) {
@@ -1298,9 +1312,20 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         }
     }
 
-    public static void registerThumbnailVideoView(PatchedVideoView v, boolean enabled) {
+    public static void registerThumbnailVideoView(PatchedVideoView v, boolean enabled, String roomName) {
 
-        Log.i("CustomTwilioVideoView", "registerThumbnailVideoView");
+        Log.i("CustomTwilioVideoView", "registerThumbnailVideoView:: " + roomName);
+
+        allThumbnailViews.put(roomName, v);
+
+        CustomTwilioVideoView view = allViews.get(roomName);
+        if(view != null) {
+            view.registerThumbnail(v, enabled);
+        }
+    }
+
+    public void registerThumbnail(PatchedVideoView v, boolean enabled) {
+        Log.i("CustomTwilioVideoView", "registerThumbnail:: " + roomName);
         if(thumbnailVideoView != null & localVideoTrack != null) {
             localVideoTrack.removeSink(thumbnailVideoView);
         }

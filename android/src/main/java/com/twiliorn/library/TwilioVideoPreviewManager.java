@@ -11,7 +11,6 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
-import com.facebook.react.bridge.ReadableArray;
 import com.facebook.react.common.MapBuilder;
 import com.facebook.react.uimanager.SimpleViewManager;
 import com.facebook.react.uimanager.ThemedReactContext;
@@ -47,10 +46,22 @@ public class TwilioVideoPreviewManager extends SimpleViewManager<TwilioVideoPrev
     @ReactProp(name = "enabled")
     public void setEnabled(TwilioVideoPreview view, @Nullable boolean enabled) {
 
-        Log.i("CustomTwilioVideoView", "Initialize Twilio LOCAL");
-        Log.i("CustomTwilioVideoView", "Enabled value is " + enabled);
-        this.enabled = enabled;
-        CustomTwilioVideoView.registerThumbnailVideoView(view.getSurfaceViewRenderer(), enabled);
+        Log.i("CustomTwilioVideoView", "Initialize Twilio Local: setEnabled:: " + enabled);
+
+        view.setEnabled(enabled);
+        if(view.initialized)
+            CustomTwilioVideoView.registerThumbnailVideoView(view.getSurfaceViewRenderer(), view.enabled, view.roomName);
+    }
+
+    @ReactProp(name = "roomName")
+    public void setRoomName(TwilioVideoPreview view, @Nullable String roomName) {
+
+        Log.i("CustomTwilioVideoView", "Initialize Twilio Local: setRoomName:: " + roomName);
+
+        view.setRoomName(roomName);
+
+        if(view.initialized)
+            CustomTwilioVideoView.registerThumbnailVideoView(view.getSurfaceViewRenderer(), view.enabled, view.roomName);
     }
 
     @Override

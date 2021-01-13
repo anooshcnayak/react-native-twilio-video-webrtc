@@ -985,7 +985,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                 }
                 pushEvent(CustomTwilioVideoView.this, ON_DISCONNECTED, event);
 
-                roomName = null;
+//                roomName = null;
 //                CustomTwilioVideoView.room = null;
                 // Only reinitialize the UI if disconnect was not called from onDestroy()
                 if (!disconnectedFromOnDestroy) {

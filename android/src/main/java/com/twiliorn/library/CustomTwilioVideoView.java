@@ -189,7 +189,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private PatchedVideoView thumbnailVideoView;
     private LocalVideoTrack localVideoTrack;
 
-    private static CameraCapturerCompat cameraCapturerCompat;
+    private CameraCapturerCompat cameraCapturerCompat;
 
     private LocalAudioTrack localAudioTrack;
     private AudioManager audioManager;
@@ -1332,6 +1332,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
         thumbnailVideoView = v;
         if (localVideoTrack != null) {
+            Log.i("CustomTwilioVideoView", "adding Sink to LocalVideoTrack:: " + roomName);
             localVideoTrack.addSink(v);
             localVideoTrack.enable(enabled);
         }

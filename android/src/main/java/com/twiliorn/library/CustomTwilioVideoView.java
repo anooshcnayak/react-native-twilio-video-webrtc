@@ -285,6 +285,8 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
     @Override
     public void onHostResume() {
+
+    Log.i("CustomTwilioVideoView", "onHostResume " + roomName);
         /*
          * In case it wasn't set.
          */
@@ -317,6 +319,8 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
 
     @Override
     public void onHostPause() {
+
+    Log.i("CustomTwilioVideoView", "onHostPause " + roomName);
         /*
          * Release the local video track before going in the background. This ensures that the
          * camera can be used by other applications while this app is in the background.
@@ -339,32 +343,15 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     @Override
     public void onHostDestroy() {
 
-        Log.i("CustomTwilioViodeView", "onHostDestroy " + roomName);
+        Log.i("CustomTwilioVideoView", "onHostDestroy " + roomName);
         /*
          * Always disconnect from the room before leaving the Activity to
          * ensure any memory allocated to the Room resource is freed.
          */
-        if (room != null && room.getState() != Room.State.DISCONNECTED) {
-            room.disconnect();
-            disconnectedFromOnDestroy = true;
-        }
-
-        /*
-         * Release the local media ensuring any memory allocated to audio or video is freed.
-         */
-        if (localVideoTrack != null) {
-            localVideoTrack.release();
-            localVideoTrack = null;
-        }
-
-        if (localAudioTrack != null) {
-            localAudioTrack.release();
-            localAudioTrack = null;
-        }
+        this.disconnect();
 
         // Quit the data track message thread
         dataTrackMessageThread.quit();
-
 
     }
 

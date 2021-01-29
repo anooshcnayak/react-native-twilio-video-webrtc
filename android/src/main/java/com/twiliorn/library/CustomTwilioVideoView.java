@@ -286,7 +286,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     @Override
     public void onHostResume() {
 
-    Log.i("CustomTwilioVideoView", "onHostResume " + roomName);
+        Log.i("CustomTwilioVideoView", "onHostResume " + roomName);
         /*
          * In case it wasn't set.
          */
@@ -320,7 +320,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     @Override
     public void onHostPause() {
 
-    Log.i("CustomTwilioVideoView", "onHostPause " + roomName);
+        Log.i("CustomTwilioVideoView", "onHostPause " + roomName);
         /*
          * Release the local video track before going in the background. This ensures that the
          * camera can be used by other applications while this app is in the background.
@@ -481,7 +481,8 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                 audioManager.abandonAudioFocusRequest(audioFocusRequest);
             }
 
-            audioManager.setSpeakerphoneOn(false);
+//            audioManager.setSpeakerphoneOn(false);
+            audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
             audioManager.setMode(previousAudioMode);
             try {
                 if (myNoisyAudioStreamReceiver != null) {

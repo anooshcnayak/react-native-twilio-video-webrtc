@@ -9,15 +9,12 @@
 package com.twiliorn.library;
 
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 
-import android.content.BroadcastReceiver;
 import android.content.Context;
-import android.content.Intent;
-import android.content.IntentFilter;
-import android.media.AudioAttributes;
-import android.media.AudioFocusRequest;
 import android.media.AudioManager;
 import android.os.Build;
 import android.os.Handler;
@@ -36,6 +33,9 @@ import com.facebook.react.uimanager.ThemedReactContext;
 import com.facebook.react.uimanager.events.RCTEventEmitter;
 
 
+import com.twilio.audioswitch.AudioDevice;
+import com.twilio.audioswitch.AudioSwitch;
+import com.twilio.video.AudioOptions;
 import com.twilio.video.AudioTrackPublication;
 import com.twilio.video.BaseTrackStats;
 import com.twilio.video.ConnectOptions;
@@ -78,12 +78,15 @@ import com.twilio.video.BandwidthProfileMode;
 import com.twilio.video.VideoFormat;
 import com.twilio.video.VideoTrackPublication;
 
+import kotlin.Unit;
 import tvi.webrtc.voiceengine.WebRtcAudioManager;
+import tvi.webrtc.voiceengine.WebRtcAudioUtils;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.util.Collections;
 import java.util.List;
+import java.util.Set;
 
 import static com.twiliorn.library.CustomTwilioVideoView.Events.ON_AUDIO_CHANGED;
 import static com.twiliorn.library.CustomTwilioVideoView.Events.ON_CAMERA_SWITCHED;
@@ -107,7 +110,7 @@ import static com.twiliorn.library.CustomTwilioVideoView.Events.ON_PARTICIPANT_R
 import static com.twiliorn.library.CustomTwilioVideoView.Events.ON_STATS_RECEIVED;
 import static com.twiliorn.library.CustomTwilioVideoView.Events.ON_VIDEO_CHANGED;
 
-public class CustomTwilioVideoView extends View implements LifecycleEventListener, AudioManager.OnAudioFocusChangeListener {
+public class CustomTwilioVideoView extends View implements LifecycleEventListener {
     private static final String TAG = "CustomTwilioVideoView";
     private static final String DATA_TRACK_MESSAGE_THREAD_NAME = "DataTrackMessages";
     private boolean enableRemoteAudio = false;
@@ -116,6 +119,8 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private int maxVideoBitrate = 100;
     private int maxAudioBitrate = 16;
     private int maxFps = 30;
+
+    private static boolean soundEffectsInitialized = false;
 
     @Retention(RetentionPolicy.SOURCE)
     @StringDef({Events.ON_CAMERA_SWITCHED,
@@ -166,8 +171,6 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private final ThemedReactContext themedReactContext;
     private final RCTEventEmitter eventEmitter;
 
-    private AudioFocusRequest audioFocusRequest;
-    private AudioAttributes playbackAttributes;
     private Handler handler = new Handler();
 
     /*
@@ -177,6 +180,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private String roomName = null;
     private String accessToken = null;
     private LocalParticipant localParticipant;
+    private AudioSwitch audioSwitch;
 
     private static Map<String, Room> allRooms = new HashMap<>();
     private static Map<String, PatchedVideoView> allThumbnailViews = new HashMap<>();
@@ -192,11 +196,9 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private CameraCapturerCompat cameraCapturerCompat;
 
     private LocalAudioTrack localAudioTrack;
-    private AudioManager audioManager;
-    private int previousAudioMode;
     private boolean disconnectedFromOnDestroy;
-    private IntentFilter intentFilter;
-    private BecomingNoisyReceiver myNoisyAudioStreamReceiver;
+
+    private boolean dataTrackEnabled = false;
 
     // Dedicated thread and handler for messages received from a RemoteDataTrack
     private final HandlerThread dataTrackMessageThread =
@@ -228,20 +230,96 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         if (themedReactContext.getCurrentActivity() != null) {
             themedReactContext.getCurrentActivity().setVolumeControlStream(AudioManager.STREAM_VOICE_CALL);
         }
-        /*
-         * Needed for setting/abandoning audio focus during call
-         */
-        audioManager = (AudioManager) themedReactContext.getSystemService(Context.AUDIO_SERVICE);
-        myNoisyAudioStreamReceiver = new BecomingNoisyReceiver();
-        intentFilter = new IntentFilter(Intent.ACTION_HEADSET_PLUG);
 
         // Create the local data track
         // localDataTrack = LocalDataTrack.create(this);
-//       localDataTrack = LocalDataTrack.create(getContext());
+        if(dataTrackEnabled)
+            localDataTrack = LocalDataTrack.create(getContext());
+
+
+        // Init Sound Effects
+
+        if(!soundEffectsInitialized) {
+            Set<String> HARDWARE_AEC_BLACKLIST = new HashSet<String>() {{
+                add("Pixel");
+                add("Pixel XL");
+                add("Moto G5");
+                add("Moto G (5S) Plus");
+                add("Moto G4");
+                add("TA-1053");
+                add("Mi A1");
+                add("Mi A2");
+                add("E5823"); // Sony z5 compact
+                add("Redmi Note 5");
+                add("FP2"); // Fairphone FP2
+                add("MI 5");
+            }};
+
+            Set<String> OPEN_SL_ES_WHITELIST = new HashSet<String>() {{
+                add("Pixel");
+                add("Pixel XL");
+            }};
+
+            if (HARDWARE_AEC_BLACKLIST.contains(Build.MODEL)) {
+                WebRtcAudioUtils.setWebRtcBasedAcousticEchoCanceler(true);
+            }
+
+            if (!OPEN_SL_ES_WHITELIST.contains(Build.MODEL)) {
+                WebRtcAudioManager.setBlacklistDeviceForOpenSLESUsage(true);
+            }
+
+            soundEffectsInitialized = true;
+        }
+
+
+        // Audioswitch preference
+
+        List<Class<? extends AudioDevice>> preferredDevices = new ArrayList<>();
+        preferredDevices.add(AudioDevice.BluetoothHeadset.class);
+        preferredDevices.add(AudioDevice.WiredHeadset.class);
+        preferredDevices.add(AudioDevice.Speakerphone.class);
+
+//        audioSwitch = new AudioSwitch(getContext(), true, focusChange -> {}, preferredDevices);
+        audioSwitch = new AudioSwitch(getContext(), false, focusChange ->  {
+            Log.i(TAG, "Audioswitch:: onAudioFocusChange: focuschange: " + focusChange);
+
+            switch (focusChange) {
+                case AudioManager.AUDIOFOCUS_GAIN:
+
+                    if(audioSwitch != null) {
+                        Log.i(TAG, "Audioswitch:: onAudioFocusChange: stopping AS: ");
+                        audioSwitch.stop();
+
+                        Log.i(TAG, "Audioswitch:: onAudioFocusChange: starting AS ");
+                        startAudioswitch();
+                        try {
+                            Log.i(TAG, "Audioswitch:: onAudioFocusChange: activating AS ");
+                            audioSwitch.activate();
+                        } catch (Exception e) {
+                            Log.e(TAG, "Audioswitch:: onAudioFocusChange: audioswitch activate exception: ", e);
+                        }
+                    }
+
+                    break;
+                case AudioManager.AUDIOFOCUS_LOSS:
+                case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+
+//                    audioSwitch.deactivate();
+                    break;
+
+                case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                    // ... pausing or ducking depends on your app
+//                    audioSwitch.deactivate();
+                    break;
+            }
+        }, preferredDevices);
 
         // Start the thread where data messages are received
-        dataTrackMessageThread.start();
-        dataTrackMessageThreadHandler = new Handler(dataTrackMessageThread.getLooper());
+
+        if(dataTrackEnabled) {
+            dataTrackMessageThread.start();
+            dataTrackMessageThreadHandler = new Handler(dataTrackMessageThread.getLooper());
+        }
     }
 
     // ===== SETUP =================================================================================
@@ -281,6 +359,15 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     }
 
     // ===== LIFECYCLE EVENTS ======================================================================
+
+    private void startAudioswitch() {
+        if(audioSwitch != null) {
+            audioSwitch.start((audioDevices, audioDevice) -> {
+                Log.i(TAG, "Audioswitch:: start: " + ((audioDevice != null) ? audioDevice.getName() : ""));
+                return Unit.INSTANCE;
+            });
+        }
+    }
 
 
     @Override
@@ -351,8 +438,14 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         this.disconnect();
 
         // Quit the data track message thread
-        dataTrackMessageThread.quit();
+        if(dataTrackEnabled) {
+            dataTrackMessageThread.quit();
+        }
 
+
+        if(audioSwitch != null) {
+            audioSwitch.stop();
+        }
     }
 
     public void releaseResource() {
@@ -385,7 +478,7 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         this.maxFps = maxFps;
 
         // Share your microphone
-        localAudioTrack = LocalAudioTrack.create(getContext(), enableAudio);
+        localAudioTrack = LocalAudioTrack.create(getContext(), enableAudio, buildAudioOptions());
 
         if (cameraCapturerCompat == null) {
             boolean createVideoStatus = createLocalVideo(enableVideo);
@@ -398,12 +491,22 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         connectToRoom(enableRemoteAudio);
     }
 
+    private AudioOptions buildAudioOptions() {
+        AudioOptions.Builder builder = new AudioOptions.Builder();
+        builder.echoCancellation(true).noiseSuppression(true);
+        return builder.build();
+    }
+
     public void connectToRoom(boolean enableAudio) {
         /*
          * Create a VideoClient allowing you to connect to a Room
          */
+
+        // Start AudioSwitch
+        startAudioswitch();
+
         setAudioFocus(enableAudio);
-        ConnectOptions.Builder connectOptionsBuilder = new ConnectOptions.Builder(this.accessToken);
+        ConnectOptions.Builder connectOptionsBuilder = new ConnectOptions.Builder(this.accessToken).region("in1");
 
         if (this.roomName != null) {
             connectOptionsBuilder.roomName(this.roomName);
@@ -446,84 +549,18 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
     private void setAudioFocus(boolean focus) {
 
         if (focus) {
-            previousAudioMode = audioManager.getMode();
-            // Request audio focus before making any device switch.
-            if (android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-                audioManager.requestAudioFocus(this,
-                        AudioManager.STREAM_VOICE_CALL,
-                        AudioManager.AUDIOFOCUS_GAIN_TRANSIENT);
-            } else {
-                playbackAttributes = new AudioAttributes.Builder()
-                        .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
-                        .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                        .build();
-                audioFocusRequest = new AudioFocusRequest
-                        .Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
-                        .setAudioAttributes(playbackAttributes)
-                        .setAcceptsDelayedFocusGain(true)
-                        .setOnAudioFocusChangeListener(this, handler)
-                        .build();
-                audioManager.requestAudioFocus(audioFocusRequest);
-            }
-            /*
-             * Use MODE_IN_COMMUNICATION as the default audio mode. It is required
-             * to be in this mode when playout and/or recording starts for the best
-             * possible VoIP performance. Some devices have difficulties with
-             * speaker mode if this is not set.
-             */
-            audioManager.setMode(AudioManager.MODE_IN_COMMUNICATION);
-            audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
-            getContext().registerReceiver(myNoisyAudioStreamReceiver, intentFilter);
-        } else {
-            if (android.os.Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
-                audioManager.abandonAudioFocus(this);
-            } else if (audioFocusRequest != null) {
-                audioManager.abandonAudioFocusRequest(audioFocusRequest);
-            }
-
-//            audioManager.setSpeakerphoneOn(false);
-            audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
-            audioManager.setMode(previousAudioMode);
             try {
-                if (myNoisyAudioStreamReceiver != null) {
-                    getContext().unregisterReceiver(myNoisyAudioStreamReceiver);
+                Log.i(TAG, "Audioswitch:: setAudioFocus: activating AS ");
+                if(audioSwitch != null) {
+                    audioSwitch.activate();
                 }
-                myNoisyAudioStreamReceiver = null;
             } catch (Exception e) {
-                // already registered
-//                 e.printStackTrace();
+                Log.e(TAG, "Audioswitch:: setAudioFocus: audioswitch activate exception: ", e);
             }
-        }
-    }
-
-    private class BecomingNoisyReceiver extends BroadcastReceiver {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            audioManager.setSpeakerphoneOn(true);
-            if (Intent.ACTION_HEADSET_PLUG.equals(intent.getAction())) {
-                audioManager.setSpeakerphoneOn(!audioManager.isWiredHeadsetOn());
+        } else {
+            if(audioSwitch != null) {
+                audioSwitch.deactivate();
             }
-        }
-    }
-
-    @Override
-    public void onAudioFocusChange(int focusChange) {
-        Log.e(TAG, "onAudioFocusChange: focuschange: " + focusChange);
-
-        switch (focusChange) {
-            case AudioManager.AUDIOFOCUS_GAIN:
-
-//                setAudioFocus(true);
-                break;
-            case AudioManager.AUDIOFOCUS_LOSS:
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-
-//                setAudioFocus(true);
-                break;
-            case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                // ... pausing or ducking depends on your app
-//                setAudioFocus(true);
-                break;
         }
     }
 
@@ -671,15 +708,23 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                 }
 
                 if(localAudioTrack == null) {
-                    localAudioTrack = LocalAudioTrack.create(getContext(), enabled);
+                    localAudioTrack = LocalAudioTrack.create(getContext(), enabled, buildAudioOptions());
                 }
 
                 localParticipant.publishTrack(localAudioTrack);
+
+                WritableMap event = new WritableNativeMap();
+                event.putBoolean("audioEnabled", enabled);
+                pushEvent(CustomTwilioVideoView.this, ON_AUDIO_CHANGED, event);
             } else {
                 if(localAudioTrack != null) {
                     localParticipant.unpublishTrack(localAudioTrack);
                     localAudioTrack.release();
                     localAudioTrack = null;
+
+                    WritableMap event = new WritableNativeMap();
+                    event.putBoolean("audioEnabled", enabled);
+                    pushEvent(CustomTwilioVideoView.this, ON_AUDIO_CHANGED, event);
                 }
             }
         }
@@ -1027,8 +1072,10 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
              * invocation of setting the listener onto our dedicated data track message thread.
              */
             if (remoteDataTrackPublication.isTrackSubscribed()) {
-                dataTrackMessageThreadHandler.post(() -> addRemoteDataTrack(remoteParticipant,
-                        remoteDataTrackPublication.getRemoteDataTrack()));
+                if(dataTrackEnabled) {
+                    dataTrackMessageThreadHandler.post(() -> addRemoteDataTrack(remoteParticipant,
+                            remoteDataTrackPublication.getRemoteDataTrack()));
+                }
             }
         }
     }
@@ -1088,7 +1135,8 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
             public void onDataTrackSubscribed(RemoteParticipant remoteParticipant, RemoteDataTrackPublication remoteDataTrackPublication, RemoteDataTrack remoteDataTrack) {
                 WritableMap event = buildParticipantDataEvent(remoteParticipant);
                 pushEvent(CustomTwilioVideoView.this, ON_PARTICIPANT_ADDED_DATA_TRACK, event);
-                dataTrackMessageThreadHandler.post(() -> addRemoteDataTrack(remoteParticipant, remoteDataTrack));
+                if(dataTrackEnabled)
+                    dataTrackMessageThreadHandler.post(() -> addRemoteDataTrack(remoteParticipant, remoteDataTrack));
             }
 
             @Override

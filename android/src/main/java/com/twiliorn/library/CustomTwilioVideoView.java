@@ -271,49 +271,6 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
             soundEffectsInitialized = true;
         }
 
-
-        // Audioswitch preference
-
-        List<Class<? extends AudioDevice>> preferredDevices = new ArrayList<>();
-        preferredDevices.add(AudioDevice.BluetoothHeadset.class);
-        preferredDevices.add(AudioDevice.WiredHeadset.class);
-        preferredDevices.add(AudioDevice.Speakerphone.class);
-
-//        audioSwitch = new AudioSwitch(getContext(), true, focusChange -> {}, preferredDevices);
-        audioSwitch = new AudioSwitch(getContext(), false, focusChange ->  {
-            Log.i(TAG, "Audioswitch:: onAudioFocusChange: focuschange: " + focusChange);
-
-            switch (focusChange) {
-                case AudioManager.AUDIOFOCUS_GAIN:
-
-                    if(audioSwitch != null) {
-                        Log.i(TAG, "Audioswitch:: onAudioFocusChange: stopping AS: ");
-                        audioSwitch.stop();
-
-                        Log.i(TAG, "Audioswitch:: onAudioFocusChange: starting AS ");
-                        startAudioswitch();
-                        try {
-                            Log.i(TAG, "Audioswitch:: onAudioFocusChange: activating AS ");
-                            audioSwitch.activate();
-                        } catch (Exception e) {
-                            Log.e(TAG, "Audioswitch:: onAudioFocusChange: audioswitch activate exception: ", e);
-                        }
-                    }
-
-                    break;
-                case AudioManager.AUDIOFOCUS_LOSS:
-                case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
-
-//                    audioSwitch.deactivate();
-                    break;
-
-                case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
-                    // ... pausing or ducking depends on your app
-//                    audioSwitch.deactivate();
-                    break;
-            }
-        }, preferredDevices);
-
         // Start the thread where data messages are received
 
         if(dataTrackEnabled) {
@@ -345,22 +302,70 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
             return true;
         }
 
-        localVideoTrack = LocalVideoTrack.create(getContext(), enableVideo, cameraCapturerCompat, buildVideoFormat());
-        if(thumbnailVideoView == null) {
-            thumbnailVideoView = allThumbnailViews.get(roomName);
-        }
+        try {
+            localVideoTrack = LocalVideoTrack.create(getContext(), enableVideo, cameraCapturerCompat, buildVideoFormat());
+            if(thumbnailVideoView == null) {
+                thumbnailVideoView = allThumbnailViews.get(roomName);
+            }
 
-        if (thumbnailVideoView != null && localVideoTrack != null) {
-            localVideoTrack.addSink(thumbnailVideoView);
+            if (thumbnailVideoView != null && localVideoTrack != null) {
+                localVideoTrack.addSink(thumbnailVideoView);
+            }
+            setThumbnailMirror();
+        } catch(Exception e) {
+            Log.e(TAG, "createLocalVideo:: LocalVideoTrack.create: Unable to create: ", e);
         }
-        setThumbnailMirror();
-
         return true;
     }
 
     // ===== LIFECYCLE EVENTS ======================================================================
 
     private void startAudioswitch() {
+
+        if(audioSwitch == null) {
+            // Audioswitch preference
+
+            List<Class<? extends AudioDevice>> preferredDevices = new ArrayList<>();
+            preferredDevices.add(AudioDevice.BluetoothHeadset.class);
+            preferredDevices.add(AudioDevice.WiredHeadset.class);
+            preferredDevices.add(AudioDevice.Speakerphone.class);
+
+//        audioSwitch = new AudioSwitch(getContext(), true, focusChange -> {}, preferredDevices);
+            audioSwitch = new AudioSwitch(getContext(), false, focusChange ->  {
+                Log.i(TAG, "Audioswitch:: onAudioFocusChange: focuschange: " + focusChange);
+
+                switch (focusChange) {
+                    case AudioManager.AUDIOFOCUS_GAIN:
+
+                        if(audioSwitch != null) {
+                            Log.i(TAG, "Audioswitch:: onAudioFocusChange: stopping AS: ");
+                            audioSwitch.stop();
+
+                            Log.i(TAG, "Audioswitch:: onAudioFocusChange: starting AS ");
+                            startAudioswitch();
+                            try {
+                                Log.i(TAG, "Audioswitch:: onAudioFocusChange: activating AS ");
+                                audioSwitch.activate();
+                            } catch (Exception e) {
+                                Log.e(TAG, "Audioswitch:: onAudioFocusChange: audioswitch activate exception: ", e);
+                            }
+                        }
+
+                        break;
+                    case AudioManager.AUDIOFOCUS_LOSS:
+                    case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT:
+
+//                    audioSwitch.deactivate();
+                        break;
+
+                    case AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK:
+                        // ... pausing or ducking depends on your app
+//                    audioSwitch.deactivate();
+                        break;
+                }
+            }, preferredDevices);
+        }
+
         if(audioSwitch != null) {
             audioSwitch.start((audioDevices, audioDevice) -> {
                 Log.i(TAG, "Audioswitch:: start: " + ((audioDevice != null) ? audioDevice.getName() : ""));
@@ -383,7 +388,11 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
              */
             if (cameraCapturerCompat != null && localVideoTrack == null) {
 //                 localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturer, buildVideoConstraints());
-                localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturerCompat, buildVideoFormat());
+                try {
+                    localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturerCompat, buildVideoFormat());
+                } catch(Exception e) {
+                    Log.e(TAG, "onHostResume:: LocalVideoTrack.create: Unable to create: ", e);
+                }
             }
 
             if (localVideoTrack != null) {
@@ -478,7 +487,11 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
         this.maxFps = maxFps;
 
         // Share your microphone
-        localAudioTrack = LocalAudioTrack.create(getContext(), enableAudio, buildAudioOptions());
+        try {
+            localAudioTrack = LocalAudioTrack.create(getContext(), enableAudio, buildAudioOptions());
+        } catch (Exception e) {
+            Log.i(TAG, "connectToRoomWrapper:: Unable to create LocalAudioTrack ", e);
+        }
 
         if (cameraCapturerCompat == null) {
             boolean createVideoStatus = createLocalVideo(enableVideo);
@@ -601,6 +614,11 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
             cameraCapturerCompat = null;
         }
 
+        if(audioSwitch != null) {
+            audioSwitch.stop();
+            audioSwitch = null;
+        }
+
         Log.i("CustomTwilioVideoView", "Camera Stopped:: " + roomName);
         trackVideoSinkMap.clear();
     }
@@ -658,7 +676,11 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                 }
 
                 if (cameraCapturerCompat != null && localVideoTrack == null) {
-                    localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturerCompat, buildVideoFormat());
+                    try {
+                        localVideoTrack = LocalVideoTrack.create(getContext(), isVideoEnabled, cameraCapturerCompat, buildVideoFormat());
+                    } catch (Exception e) {
+                        Log.e(TAG, "toggleVideo:: LocalVideoTrack.create: Unable to create: ", e);
+                    }
                 }
 
                 if (localVideoTrack != null) {
@@ -708,10 +730,15 @@ public class CustomTwilioVideoView extends View implements LifecycleEventListene
                 }
 
                 if(localAudioTrack == null) {
-                    localAudioTrack = LocalAudioTrack.create(getContext(), enabled, buildAudioOptions());
+                    try {
+                        localAudioTrack = LocalAudioTrack.create(getContext(), enabled, buildAudioOptions());
+                    } catch (Exception e) {
+                        Log.i(TAG, "toggleAudio:: Unable to create LocalAudioTrack ", e);
+                    }
                 }
 
-                localParticipant.publishTrack(localAudioTrack);
+                if(localAudioTrack != null)
+                    localParticipant.publishTrack(localAudioTrack);
 
                 WritableMap event = new WritableNativeMap();
                 event.putBoolean("audioEnabled", enabled);
